@@ -33,3 +33,12 @@ func TestParseInitialRecord(t *testing.T) {
 		t.Fatalf("issue parsing addressee")
 	}
 }
+
+func TestParseOldBalanceRecord(t *testing.T) {
+	sample := `10000                                     0000000550584847241114                                                             000`
+	r, err := ParseOldBalanceRecord(sample)
+	if err != nil {
+		t.Fatalf("could not parse sample: %v", err)
+	}
+	t.Logf("%v\n", r)
+}
