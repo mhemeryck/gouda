@@ -8,22 +8,33 @@ import (
 )
 
 // groupMap gives a map with as keys the group names and as values the matches
-func groupMap(r *regexp.Regexp, s string) map[string]string {
-	result := make(map[string]string)
-	values := r.FindStringSubmatch(s)
+func groupMap(r *regexp.Regexp, s string) map[string]*string {
+	result := make(map[string]*string)
 	keys := r.SubexpNames()
-	for i, value := range values {
+	values := r.FindStringSubmatch(s)
+	for i := range values {
 		if i != 0 {
-			result[keys[i]] = value
+			result[keys[i]] = &values[i]
 		}
 	}
 	return result
 }
 
-// trimValues removes all extra whitespace from map values
-func trimValues(m map[string]string) {
-	for key, value := range m {
-		m[key] = strings.TrimSpace(value)
+// parseInt is a helper method to parse an integer from a given string
+func parseInt(s string) (*int, error) {
+	s = strings.TrimSpace(s)
+	// Nothing found, just point to nothing
+	if s == "" {
+		return nil, nil
+	}
+	v, err := strconv.Atoi(s)
+	return &v, err
+}
+
+// trimValues trims the spaces of all the values in the map
+func trimValues(m map[string]*string) {
+	for i := range m {
+		*m[i] = strings.TrimSpace(*m[i])
 	}
 }
 
@@ -58,29 +69,29 @@ var oldBalanceRecordRegex = regexp.MustCompile(`^[\d\s]{1}` +
 
 // InitialRecord represents the first line of the CODA file
 type InitialRecord struct {
-	CreationDate             time.Time
-	BankIdentificationNumber int
-	IsDuplicate              bool
-	Reference                string
-	Addressee                string
-	BIC                      string
-	AccountHolderReference   int
-	Free                     string
-	TransactionReference     string
-	VersionCode              int
+	CreationDate             *time.Time
+	BankIdentificationNumber *int
+	IsDuplicate              *bool
+	Reference                *string
+	Addressee                *string
+	BIC                      *string
+	AccountHolderReference   *int
+	Free                     *string
+	TransactionReference     *string
+	VersionCode              *int
 }
 
 // OldBalanceRecord represents the old balance at the start of the CODA file
 type OldBalanceRecord struct {
-	AccountStructure          int
-	SerialNumber              int
-	AccountNumber             string
-	BalanceSign               bool // True means debit / false credit
-	OldBalance                int
-	BalanceDate               time.Time
-	AccountHolderName         string
-	AccountDescription        string
-	BankStatementSerialNumber int
+	AccountStructure          *int
+	SerialNumber              *int
+	AccountNumber             *string
+	BalanceSign               *bool // True means debit / false credit
+	OldBalance                *int
+	BalanceDate               *time.Time
+	AccountHolderName         *string
+	AccountDescription        *string
+	BankStatementSerialNumber *int
 }
 
 // ParseInitialRecord creates an InitialRecord from a given string
@@ -88,33 +99,29 @@ func ParseInitialRecord(s string) (r InitialRecord, err error) {
 	m := groupMap(initialRecordRegex, s)
 	trimValues(m)
 
-	r.CreationDate, err = time.Parse("020106", m["creation_date"])
+	v, err := time.Parse("020106", *m["creation_date"])
 	if err != nil {
 		return r, err
 	}
-	if m["bank_identification_number"] != "" {
-		r.BankIdentificationNumber, err = strconv.Atoi(m["bank_identification_number"])
-		if err != nil {
-			return r, err
-		}
+	r.CreationDate = &v
+	r.BankIdentificationNumber, err = parseInt(*m["bank_identification_number"])
+	if err != nil {
+		return r, err
 	}
-	r.IsDuplicate = m["duplicate"] == "D"
+	isDuplicate := *m["duplicate"] == "D"
+	r.IsDuplicate = &isDuplicate
 	r.Reference = m["reference"]
 	r.Addressee = m["addressee"]
 	r.BIC = m["bic"]
-	if m["account_holder_reference"] != "" {
-		r.AccountHolderReference, err = strconv.Atoi(m["account_holder_reference"])
-		if err != nil {
-			return r, err
-		}
+	r.AccountHolderReference, err = parseInt(*m["account_holder_reference"])
+	if err != nil {
+		return r, err
 	}
 	r.Free = m["free"]
 	r.TransactionReference = m["transaction_reference"]
-	if m["version_code"] != "" {
-		r.VersionCode, err = strconv.Atoi(m["version_code"])
-		if err != nil {
-			return r, err
-		}
+	r.VersionCode, err = parseInt(*m["version_code"])
+	if err != nil {
+		return r, err
 	}
 	return r, nil
 }
@@ -124,37 +131,28 @@ func ParseOldBalanceRecord(s string) (r OldBalanceRecord, err error) {
 	m := groupMap(oldBalanceRecordRegex, s)
 	trimValues(m)
 
-	if m["account_structure"] != "" {
-		r.AccountStructure, err = strconv.Atoi(m["account_structure"])
-		if err != nil {
-			return r, err
-		}
-	}
-	if m["serial_number"] != "" {
-		r.SerialNumber, err = strconv.Atoi(m["serial_number"])
-		if err != nil {
-			return r, err
-		}
-	}
-	r.AccountNumber = m["account_number"]
-	r.BalanceSign = m["balance_sign"] == "1"
-	if m["old_balance"] != "" {
-		r.OldBalance, err = strconv.Atoi(m["old_balance"])
-		if err != nil {
-			return r, err
-		}
-	}
-	r.BalanceDate, err = time.Parse("020106", m["balance_date"])
+	r.AccountStructure, err = parseInt(*m["account_structure"])
 	if err != nil {
 		return r, err
 	}
+	r.SerialNumber, err = parseInt(*m["serial_number"])
+	if err != nil {
+		return r, err
+	}
+	r.AccountNumber = m["account_number"]
+	balanceSign := *m["balance_sign"] == "1"
+	r.BalanceSign = &balanceSign
+	r.OldBalance, err = parseInt(*m["old_balance"])
+	if err != nil {
+		return r, err
+	}
+	v, err := time.Parse("020106", *m["balance_date"])
+	if err != nil {
+		return r, err
+	}
+	r.BalanceDate = &v
 	r.AccountHolderName = m["account_holder_name"]
 	r.AccountDescription = m["account_description"]
-	if m["bank_statement_serial_number"] != "" {
-		r.BankStatementSerialNumber, err = strconv.Atoi(m["bank_statement_serial_number"])
-		if err != nil {
-			return r, err
-		}
-	}
+	r.BankStatementSerialNumber, err = parseInt(*m["bank_statement_serial_number"])
 	return r, nil
 }
