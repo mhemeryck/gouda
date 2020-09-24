@@ -38,34 +38,34 @@ func trimValues(m map[string]*string) {
 	}
 }
 
-var initialRecordRegex = regexp.MustCompile(`^[\d\s]{1}` +
+var initialRecordRegex = regexp.MustCompile(`^\d{1}` +
 	`.{4}` +
 	`(?P<creation_date>\d{6})` +
-	`(?P<bank_identification_number>[\d\s]{3})` +
+	`(?P<bank_identification_number>\d{3})` +
 	`.{2}` +
-	`(?P<duplicate>.{1})` +
+	`(?P<duplicate>[D\s]{1})` +
 	`.{7}` +
 	`(?P<reference>.{10})` +
 	`(?P<addressee>.{26})` +
 	`(?P<bic>.{11})` +
-	`0?(?P<account_holder_reference>[\d\s]{10})` +
+	`0?(?P<account_holder_reference>\d{10})` +
 	`.{1}` +
 	`(?P<free>.{5})` +
 	`(?P<transaction_reference>.{16})` +
 	`(?P<related_reference>.{16})` +
 	`.{7}` +
-	`(?P<version_code>[\d\s]{1})$`)
+	`(?P<version_code>\d{1})$`)
 
-var oldBalanceRecordRegex = regexp.MustCompile(`^[\d\s]{1}` +
-	`(?P<account_structure>[\d\s]{1})` +
-	`(?P<serial_number>[\d\s]{3})` +
+var oldBalanceRecordRegex = regexp.MustCompile(`^\d{1}` +
+	`(?P<account_structure>\d{1})` +
+	`(?P<serial_number>\d{3})` +
 	`(?P<account_number>.{37})` +
-	`(?P<balance_sign>[\d\s]{1})` +
+	`(?P<balance_sign>[01]{1})` +
 	`(?P<old_balance>\d{15})` +
 	`(?P<balance_date>\d{6})` +
 	`(?P<account_holder_name>.{26})` +
 	`(?P<account_description>.{35})` +
-	`(?P<bank_statement_serial_number>[\d\s]{3})$`)
+	`(?P<bank_statement_serial_number>\d{3})$`)
 
 // InitialRecord represents the first line of the CODA file
 type InitialRecord struct {
