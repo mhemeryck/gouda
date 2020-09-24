@@ -12,7 +12,5 @@ func main() {
 	if err != nil {
 		log.Fatalf("%v\n", err)
 	}
-	if record.SerialNumber != nil {
-		fmt.Printf("%d\n", *record.SerialNumber)
-	}
+	fmt.Printf("%d\n", record.SerialNumber)
 }

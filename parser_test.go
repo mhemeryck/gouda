@@ -14,22 +14,22 @@ func TestParseInitialRecord(t *testing.T) {
 	if !r.CreationDate.Equal(time.Date(2009, 2, 13, 0, 0, 0, 0, time.UTC)) {
 		t.Fatalf("wrong date parsed")
 	}
-	if *r.BankIdentificationNumber != 126 {
+	if r.BankIdentificationNumber != 126 {
 		t.Fatalf("incorrect bank identification code parsed")
 	}
-	if *r.Reference != "YjeybrNhwg" {
+	if r.Reference != "YjeybrNhwg" {
 		t.Fatalf("wrong reference parsed")
 	}
-	if *r.AccountHolderReference != 3155032542 {
+	if r.AccountHolderReference != 3155032542 {
 		t.Fatalf("issue parsing account holder reference")
 	}
-	if *r.BIC != "BBRUBEBB" {
-		t.Fatalf("issue parsing BIC code: got %s", *r.BIC)
+	if r.BIC != "BBRUBEBB" {
+		t.Fatalf("issue parsing BIC code: got %s", r.BIC)
 	}
-	if *r.IsDuplicate == true {
+	if r.IsDuplicate == true {
 		t.Fatalf("issue parsing duplicate code")
 	}
-	if *r.Addressee != "Michael Campbell" {
+	if r.Addressee != "Michael Campbell" {
 		t.Fatalf("issue parsing addressee")
 	}
 }
