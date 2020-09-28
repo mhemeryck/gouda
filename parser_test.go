@@ -7,7 +7,8 @@ import (
 
 func TestParseInitialRecord(t *testing.T) {
 	sample := `0000013020912605        YjeybrNhwgMichael Campbell          BBRUBEBB   03155032542                                             2`
-	r, err := ParseInitialRecord(sample)
+	r := &InitialRecord{}
+	err := r.Parse(sample)
 	if err != nil {
 		t.Fatalf("could not parse sample: %v", err)
 	}
@@ -36,7 +37,8 @@ func TestParseInitialRecord(t *testing.T) {
 
 func TestParseOldBalanceRecord(t *testing.T) {
 	sample := `10000                                     0000000550584847241114                                                             000`
-	_, err := ParseOldBalanceRecord(sample)
+	r := &OldBalanceRecord{}
+	err := r.Parse(sample)
 	if err != nil {
 		t.Fatalf("could not parse sample: %v", err)
 	}
