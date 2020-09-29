@@ -73,6 +73,21 @@ var transactionRecordRegex = regexp.MustCompile(`^21` +
 	`\s{1}` +
 	`(?P<information_sequence>[01]{1})$`)
 
+var transactionPurposeRecordRegex = regexp.MustCompile(`^22` +
+	`(?P<serial_number>\d{4})` +
+	`(?P<detail_number>\d{4})` +
+	`(?P<bank_statement>.{53})` +
+	`(?P<client_reference>.{35})` +
+	`(?P<bic>.{11})` +
+	`\s{3}` +
+	`(?P<transaction_type>[\s12345]{1})` +
+	`(?P<reason_return_code>.{4})` +
+	`(?P<purpose_category>.{4})` +
+	`(?P<purpose>.{4})` +
+	`(?P<transaction_sequence>[01]{1})` +
+	`\s{1}` +
+	`(?P<information_sequence>[01]{1})$`)
+
 // Record represents a generic line in a CODA file
 type Record interface {
 	Parse(string) error
@@ -123,6 +138,21 @@ type TransactionRecord struct {
 	InformationSequence       bool
 }
 
+// TransactionPurposeRecord holds extra information related to the transaction record
+type TransactionPurposeRecord struct {
+	SerialNumber        int
+	DetailNumber        int
+	BankStatement       string
+	ClientReference     string
+	BIC                 string
+	TransactionType     int
+	ReasonReturnCode    string
+	PurposeCategory     string
+	Purpose             string
+	TransactionSequence bool
+	InformationSequence bool
+}
+
 // Parse reads data from string s into an initial record
 func (r *InitialRecord) Parse(s string) (err error) {
 	m := groupMap(initialRecordRegex, s)
@@ -156,7 +186,7 @@ func (r *InitialRecord) Parse(s string) (err error) {
 			return err
 		}
 	}
-	return nil
+	return err
 }
 
 // Parse reads data from string s into an old balance record
@@ -196,7 +226,7 @@ func (r *OldBalanceRecord) Parse(s string) (err error) {
 			return err
 		}
 	}
-	return nil
+	return err
 }
 
 // Parse reads data from string s into a transaction record
@@ -262,7 +292,42 @@ func (r *TransactionRecord) Parse(s string) (err error) {
 	r.TransactionSequence = m["transaction_sequence"] == "1"
 	r.InformationSequence = m["information_sequence"] == "1"
 
-	return nil
+	return err
+}
+
+// Parse will wrap a transaction purpose record line
+func (r *TransactionPurposeRecord) Parse(s string) (err error) {
+	m := groupMap(transactionPurposeRecordRegex, s)
+	trimValues(m)
+
+	if m["serial_number"] != "" {
+		r.SerialNumber, err = strconv.Atoi(m["serial_number"])
+		if err != nil {
+			return err
+		}
+	}
+	if m["detail_number"] != "" {
+		r.DetailNumber, err = strconv.Atoi(m["detail_number"])
+		if err != nil {
+			return err
+		}
+	}
+	r.BankStatement = m["bank_statement"]
+	r.ClientReference = m["client_reference"]
+	r.BIC = m["bic"]
+	if m["transaction_type"] != "" {
+		r.TransactionType, err = strconv.Atoi(m["transaction_type"])
+		if err != nil {
+			return err
+		}
+	}
+	r.ReasonReturnCode = m["reason_return_code"]
+	r.PurposeCategory = m["purpose_category"]
+	r.Purpose = m["Purpose"]
+	r.TransactionSequence = m["transaction_sequence"] == "1"
+	r.InformationSequence = m["information_sequence"] == "1"
+
+	return err
 }
 
 // Parse takes a line of CODA and parses it
@@ -273,6 +338,8 @@ func Parse(line string) (r Record, err error) {
 		r = &OldBalanceRecord{}
 	} else if strings.HasPrefix(line, "21") {
 		r = &TransactionRecord{}
+	} else if strings.HasPrefix(line, "22") {
+		r = &TransactionPurposeRecord{}
 	} else {
 		return nil, nil
 	}
