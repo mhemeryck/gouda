@@ -88,6 +88,16 @@ var transactionPurposeRecordRegex = regexp.MustCompile(`^22` +
 	`\s{1}` +
 	`(?P<information_sequence>[01]{1})$`)
 
+var transactionDetailRecordRegex = regexp.MustCompile(`^23` +
+	`(?P<serial_number>\d{4})` +
+	`(?P<detail_number>\d{4})` +
+	`(?P<account_number>.{37})` +
+	`(?P<account_holder_name>.{35})` +
+	`(?P<description>.{43})` +
+	`(?P<transaction_sequence>0{1})` +
+	`\s{1}` +
+	`(?P<information_sequence>.{1})`)
+
 // Record represents a generic line in a CODA file
 type Record interface {
 	Parse(string) error
@@ -149,6 +159,17 @@ type TransactionPurposeRecord struct {
 	ReasonReturnCode    string
 	PurposeCategory     string
 	Purpose             string
+	TransactionSequence bool
+	InformationSequence bool
+}
+
+// TransactionDetailRecord has supplemental information to the transaction record
+type TransactionDetailRecord struct {
+	SerialNumber        int
+	DetailNumber        int
+	AccountNumber       string
+	AccountHolderName   string
+	Description         string
 	TransactionSequence bool
 	InformationSequence bool
 }
@@ -330,6 +351,30 @@ func (r *TransactionPurposeRecord) Parse(s string) (err error) {
 	return err
 }
 
+// Parse TransactionDetailRecord
+func (r *TransactionDetailRecord) Parse(s string) (err error) {
+	m := groupMap(transactionDetailRecordRegex, s)
+	trimValues(m)
+	if m["serial_number"] != "" {
+		r.SerialNumber, err = strconv.Atoi(m["serial_number"])
+		if err != nil {
+			return err
+		}
+	}
+	if m["detail_number"] != "" {
+		r.DetailNumber, err = strconv.Atoi(m["detail_number"])
+		if err != nil {
+			return err
+		}
+	}
+	r.AccountNumber = m["account_number"]
+	r.AccountHolderName = m["account_holder_name"]
+	r.Description = m["description"]
+	r.TransactionSequence = m["transaction_sequence"] == "1"
+	r.InformationSequence = m["information_sequence"] == "1"
+	return err
+}
+
 // Parse takes a line of CODA and parses it
 func Parse(line string) (r Record, err error) {
 	if strings.HasPrefix(line, "0") {
@@ -340,6 +385,8 @@ func Parse(line string) (r Record, err error) {
 		r = &TransactionRecord{}
 	} else if strings.HasPrefix(line, "22") {
 		r = &TransactionPurposeRecord{}
+	} else if strings.HasPrefix(line, "23") {
+		r = &TransactionDetailRecord{}
 	} else {
 		return nil, nil
 	}

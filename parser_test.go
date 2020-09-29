@@ -62,3 +62,16 @@ func TestParseTransactionPurposeRecord(t *testing.T) {
 	}
 
 }
+
+func TestParseTransactionDetailRecord(t *testing.T) {
+	sample := `2306190000                                     Mark Davis                                                                    0 0`
+
+	r := &TransactionDetailRecord{}
+	err := r.Parse(sample)
+	if err != nil {
+		t.Fatalf("could not parse sample: %v", err)
+	}
+	if r.AccountHolderName != "Mark Davis" {
+		t.Fatalf("expected account holder name to be Mark Davis, got %s", r.AccountHolderName)
+	}
+}
