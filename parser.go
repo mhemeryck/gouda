@@ -27,7 +27,7 @@ func trimValues(m map[string]string) {
 	}
 }
 
-var initialRecordRegex = regexp.MustCompile(`^\d{1}` +
+var initialRecordRegex = regexp.MustCompile(`^0` +
 	`.{4}` +
 	`(?P<creation_date>\d{6})` +
 	`(?P<bank_identification_number>\d{3})` +
@@ -45,7 +45,7 @@ var initialRecordRegex = regexp.MustCompile(`^\d{1}` +
 	`.{7}` +
 	`(?P<version_code>\d{1})$`)
 
-var oldBalanceRecordRegex = regexp.MustCompile(`^\d{1}` +
+var oldBalanceRecordRegex = regexp.MustCompile(`^1` +
 	`(?P<account_structure>\d{1})` +
 	`(?P<serial_number>\d{3})` +
 	`(?P<account_number>.{37})` +
@@ -55,6 +55,23 @@ var oldBalanceRecordRegex = regexp.MustCompile(`^\d{1}` +
 	`(?P<account_holder_name>.{26})` +
 	`(?P<account_description>.{35})` +
 	`(?P<bank_statement_serial_number>\d{3})$`)
+
+var transactionRecordRegex = regexp.MustCompile(`^21` +
+	`(?P<serial_number>\d{4})` +
+	`(?P<detail_number>\d{4})` +
+	`(?P<bank_reference_number>.{21})` +
+	`(?P<balance_sign>\d{1})` +
+	`(?P<balance>\d{15})` +
+	`(?P<balance_date>\d{6})` +
+	`(?P<transaction_code>\d{8})` +
+	`(?P<reference_type>\d{1})` +
+	`(?P<reference>.{53})` +
+	`(?P<booking_date>\d{6})` +
+	`(?P<bank_statement_serial_number>\d{3})` +
+	`(?P<globalisation_code>\d{1})` +
+	`(?P<transaction_sequence>[01]{1})` +
+	`\s{1}` +
+	`(?P<information_sequence>[01]{1})$`)
 
 // Record represents a generic line in a CODA file
 type Record interface {
@@ -86,6 +103,24 @@ type OldBalanceRecord struct {
 	AccountHolderName         string
 	AccountDescription        string
 	BankStatementSerialNumber int
+}
+
+// TransactionRecord represents a single transaction in a CODA file
+type TransactionRecord struct {
+	SerialNumber              int
+	DetailNumber              int
+	BankReferenceNumber       string
+	BalanceSign               bool // True means debit / false credit
+	Balance                   int
+	BalanceDate               time.Time
+	TransactionCode           int
+	ReferenceType             int
+	Reference                 string
+	BookingDate               time.Time
+	BankStatementSerialNumber int
+	GlobalisationCode         int
+	TransactionSequence       bool
+	InformationSequence       bool
 }
 
 // Parse reads data from string s into an initial record
@@ -164,12 +199,80 @@ func (r *OldBalanceRecord) Parse(s string) (err error) {
 	return nil
 }
 
+// Parse reads data from string s into a transaction record
+func (r *TransactionRecord) Parse(s string) (err error) {
+	m := groupMap(transactionRecordRegex, s)
+	trimValues(m)
+
+	if m["serial_number"] != "" {
+		r.SerialNumber, err = strconv.Atoi(m["serial_number"])
+		if err != nil {
+			return err
+		}
+	}
+	if m["detail_number"] != "" {
+		r.DetailNumber, err = strconv.Atoi(m["detail_number"])
+		if err != nil {
+			return err
+		}
+	}
+	r.BankReferenceNumber = m["bank_reference_number"]
+	r.BalanceSign = m["balance_sign"] == "1"
+	if m["balance"] != "" {
+		r.Balance, err = strconv.Atoi(m["balance"])
+		if err != nil {
+			return err
+		}
+	}
+	if m["balance_date"] != "000000" {
+		r.BalanceDate, err = time.Parse("020106", m["balance_date"])
+		if err != nil {
+			return err
+		}
+	}
+	if m["transaction_code"] != "" {
+		r.TransactionCode, err = strconv.Atoi(m["transaction_code"])
+		if err != nil {
+			return err
+		}
+	}
+	if m["reference_type"] != "" {
+		r.ReferenceType, err = strconv.Atoi(m["reference_type"])
+		if err != nil {
+			return err
+		}
+	}
+	r.Reference = m["reference"]
+	r.BookingDate, err = time.Parse("020106", m["booking_date"])
+	if err != nil {
+		return err
+	}
+	if m["bank_statement_serial_number"] != "" {
+		r.BankStatementSerialNumber, err = strconv.Atoi(m["bank_statement_serial_number"])
+		if err != nil {
+			return err
+		}
+	}
+	if m["globalisation_code"] != "" {
+		r.GlobalisationCode, err = strconv.Atoi(m["globalisation_code"])
+		if err != nil {
+			return err
+		}
+	}
+	r.TransactionSequence = m["transaction_sequence"] == "1"
+	r.InformationSequence = m["information_sequence"] == "1"
+
+	return nil
+}
+
 // Parse takes a line of CODA and parses it
 func Parse(line string) (r Record, err error) {
 	if strings.HasPrefix(line, "0") {
 		r = &InitialRecord{}
 	} else if strings.HasPrefix(line, "1") {
 		r = &OldBalanceRecord{}
+	} else if strings.HasPrefix(line, "21") {
+		r = &TransactionRecord{}
 	} else {
 		return nil, nil
 	}

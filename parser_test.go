@@ -43,3 +43,12 @@ func TestParseOldBalanceRecord(t *testing.T) {
 		t.Fatalf("could not parse sample: %v", err)
 	}
 }
+
+func TestParseTransactionRecord(t *testing.T) {
+	sample := `2139660000                     0000000160483785051100000000000                                                     21031600000 0`
+	r := &TransactionRecord{}
+	err := r.Parse(sample)
+	if err != nil {
+		t.Fatalf("could not parse sample: %v", err)
+	}
+}
